@@ -1,324 +1,606 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 
-type EraId = "pre1950" | "50_70" | "70_80" | "80_2000";
-
-const ERAS: { id: EraId; label: string; meta: string }[] = [
-  { id: "pre1950", label: "Pre-1950", meta: "veteran & pre-war" },
-  { id: "50_70", label: "1950–1970", meta: "golden era" },
-  { id: "70_80", label: "1970–1980", meta: "analogue icons" },
-  { id: "80_2000", label: "1980–2000", meta: "modern classics" },
-];
-
-const MAKE_MODEL_BY_ERA: Record<EraId, Record<string, string[]>> = {
-  pre1950: { Jaguar: ["SS 100"], MG: ["TC"], Bentley: ["3½ Litre"] },
-  "50_70": { Jaguar: ["E-Type Series 1", "E-Type Series 2"], Porsche: ["356"], Mercedes: ["300 SL"] },
-  "70_80": { Porsche: ["911 SC"], Ford: ["Escort Mk2"], BMW: ["E9 3.0 CS"] },
-  "80_2000": { Ford: ["Escort RS Turbo"], BMW: ["E30"], Jaguar: ["XJS"] },
-};
-
-const CATEGORIES = [
-  "Engine & Fuel",
-  "Cooling",
-  "Transmission",
-  "Suspension",
-  "Brakes",
-  "Electrical",
-  "Body Panels",
-  "Interior & Trim",
-] as const;
-
-type Listing = {
-  id: string;
-  era: EraId;
-  make: string;
-  model: string;
-  category: typeof CATEGORIES[number];
-  title: string;
-  price: number;
-  location: string;
-  condition: "Original" | "Used" | "Overhauled";
-};
-
-const SEED: Listing[] = [
-  {
-    id: "1",
-    era: "50_70",
-    make: "Jaguar",
-    model: "E-Type Series 1",
-    category: "Brakes",
-    title: "Dunlop front calipers (pair)",
-    price: 595,
-    location: "West Sussex",
-    condition: "Used",
-  },
-  {
-    id: "2",
-    era: "80_2000",
-    make: "Ford",
-    model: "Escort RS Turbo",
-    category: "Engine & Fuel",
-    title: "RS Turbo S2 inlet manifold",
-    price: 380,
-    location: "Essex",
-    condition: "Original",
-  },
-  {
-    id: "3",
-    era: "50_70",
-    make: "Porsche",
-    model: "356",
-    category: "Electrical",
-    title: "Bosch starter motor (overhauled)",
-    price: 725,
-    location: "London",
-    condition: "Overhauled",
-  },
-];
-
-type Step = "era" | "make" | "model" | "category" | "results";
+type Route =
+  | "/"
+  | "/search"
+  | "/sell"
+  | "/signin"
+  | "/contact"
+  | "/help"
+  | "/terms"
+  | "/privacy"
+  | "/cookies"
+  | "/disclaimer";
 
 export default function App() {
-  const [step, setStep] = useState<Step>("era");
-  const [era, setEra] = useState<EraId | null>(null);
-  const [make, setMake] = useState<string | null>(null);
-  const [model, setModel] = useState<string | null>(null);
-  const [category, setCategory] = useState<typeof CATEGORIES[number] | null>(null);
+  const year = useMemo(() => new Date().getFullYear(), []);
+  const [route, setRoute] = useState<Route>(getRouteFromLocation());
 
-  const reset = () => {
-    setStep("era");
-    setEra(null);
-    setMake(null);
-    setModel(null);
-    setCategory(null);
-  };
+  // Inject responsive CSS once
+  useEffect(() => {
+    const id = "spareshub-responsive-style";
+    if (document.getElementById(id)) return;
 
-  const makes = useMemo(() => (era ? Object.keys(MAKE_MODEL_BY_ERA[era] || {}).sort() : []), [era]);
-  const models = useMemo(() => (era && make ? (MAKE_MODEL_BY_ERA[era]?.[make] || []).slice().sort() : []), [era, make]);
+    const style = document.createElement("style");
+    style.id = id;
+    style.innerHTML = `
+      @media (max-width: 720px) {
+        .spareshub-cta-row { grid-template-columns: 1fr !important; }
+        .spareshub-hero-title { font-size: 34px !important; }
+        .spareshub-footer-grid { grid-template-columns: 1fr 1fr !important; }
+        .spareshub-topnav { gap: 8px !important; }
+      }
+      @media (max-width: 440px) {
+        .spareshub-footer-grid { grid-template-columns: 1fr !important; }
+        .spareshub-hero-title { font-size: 30px !important; }
+      }
+    `;
+    document.head.appendChild(style);
+  }, []);
 
-  const filtered = useMemo(() => {
-    return SEED.filter((x) => (era ? x.era === era : true))
-      .filter((x) => (make ? x.make === make : true))
-      .filter((x) => (model ? x.model === model : true))
-      .filter((x) => (category ? x.category === category : true));
-  }, [era, make, model, category]);
+  // Browser back/forward support
+  useEffect(() => {
+    const onPopState = () => setRoute(getRouteFromLocation());
+    window.addEventListener("popstate", onPopState);
+    return () => window.removeEventListener("popstate", onPopState);
+  }, []);
 
-  const title: Record<Step, string> = {
-    era: "Choose an era",
-    make: "Choose a make",
-    model: "Choose a model",
-    category: "Choose a category",
-    results: "Parts for sale",
-  };
+  function navigate(to: Route) {
+    if (to === route) return;
+    window.history.pushState({}, "", to);
+    setRoute(to);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
 
   return (
-    <div style={styles.page}>
-      <div style={styles.shell}>
-        <div style={styles.headerRow}>
-          <div>
-            <div style={styles.brand}>Parts Web</div>
-            <div style={styles.sub}>Original • Used • Overhauled classic parts</div>
-          </div>
-          <button onClick={reset} style={styles.resetBtn}>
-            Reset
+    <div style={styles.appShell}>
+      <header style={styles.topBar}>
+        <div style={styles.topBarInner}>
+          <button onClick={() => navigate("/")} style={styles.brandButton} aria-label="Go to home">
+            <span style={styles.brandMark}>Spares</span>
+            <span style={styles.brandMarkAlt}>Hub</span>
           </button>
+
+          <nav className="spareshub-topnav" style={styles.topNav}>
+            <NavLink label="Search" to="/search" route={route} onNav={navigate} />
+            <NavLink label="Sell" to="/sell" route={route} onNav={navigate} />
+            <NavLink label="Sign In" to="/signin" route={route} onNav={navigate} />
+          </nav>
         </div>
+      </header>
 
-        <div style={styles.breadcrumbs}>
-          {era && <span style={styles.crumb}>Era: <b>{ERAS.find(e => e.id === era)?.label}</b></span>}
-          {make && <span style={styles.crumb}>Make: <b>{make}</b></span>}
-          {model && <span style={styles.crumb}>Model: <b>{model}</b></span>}
-          {category && <span style={styles.crumb}>Category: <b>{category}</b></span>}
+      <main style={styles.main}>
+        {route === "/" && <Landing onNav={navigate} />}
+        {route === "/search" && <SearchPage onNav={navigate} />}
+        {route === "/sell" && <SellPage onNav={navigate} />}
+        {route === "/signin" && <SignInPage onNav={navigate} />}
+        {route === "/contact" && <ContactPage />}
+        {route === "/help" && <HelpPage />}
+        {route === "/terms" && <LegalPage title="Terms & Conditions" kind="terms" />}
+        {route === "/privacy" && <LegalPage title="Privacy Policy" kind="privacy" />}
+        {route === "/cookies" && <LegalPage title="Cookie Policy" kind="cookies" />}
+        {route === "/disclaimer" && <LegalPage title="Disclaimer" kind="disclaimer" />}
+      </main>
+
+      <footer style={styles.footer}>
+        <div style={styles.footerInner}>
+          <div className="spareshub-footer-grid" style={styles.footerGrid}>
+            <div>
+              <div style={styles.footerBrand}>
+                <span style={styles.footerBrandA}>Spares</span>
+                <span style={styles.footerBrandB}>Hub</span>
+              </div>
+              <p style={styles.footerText}>
+                The simplest way to find and sell classic & historic vehicle parts.
+                <br />
+                Built for enthusiasts, workshops, and traders.
+              </p>
+              <div style={styles.footerTiny}>© {year} SparesHub. All rights reserved.</div>
+            </div>
+
+            <div>
+              <div style={styles.footerHeading}>Site</div>
+              <FooterLink label="Home" to="/" onNav={navigate} />
+              <FooterLink label="Search" to="/search" onNav={navigate} />
+              <FooterLink label="Sell" to="/sell" onNav={navigate} />
+              <FooterLink label="Sign In" to="/signin" onNav={navigate} />
+              <FooterLink label="Help / FAQ" to="/help" onNav={navigate} />
+            </div>
+
+            <div>
+              <div style={styles.footerHeading}>Legal</div>
+              <FooterLink label="Terms & Conditions" to="/terms" onNav={navigate} />
+              <FooterLink label="Privacy Policy" to="/privacy" onNav={navigate} />
+              <FooterLink label="Cookie Policy" to="/cookies" onNav={navigate} />
+              <FooterLink label="Disclaimer" to="/disclaimer" onNav={navigate} />
+            </div>
+
+            <div>
+              <div style={styles.footerHeading}>Contact</div>
+              <FooterLink label="Contact Us" to="/contact" onNav={navigate} />
+              <div style={styles.footerText}>For partnership enquiries, press, or support:</div>
+              <div style={styles.footerPill}>hello@spareshub.uk</div>
+            </div>
+          </div>
+
+          <div style={styles.footerDivider} />
+          <div style={styles.footerFinePrint}>
+            SparesHub is a marketplace. We do not guarantee the authenticity, condition, legality, or
+            fitment of items listed. Always verify compatibility and provenance before purchase.
+          </div>
         </div>
-
-        <div style={styles.h1}>{title[step]}</div>
-
-        {step === "era" && (
-          <Grid>
-            {ERAS.map((e) => (
-              <Tile key={e.id} onClick={() => { setEra(e.id); setStep("make"); }}>
-                <div style={styles.tileLabel}>{e.label}</div>
-                <div style={styles.tileMeta}>{e.meta}</div>
-              </Tile>
-            ))}
-          </Grid>
-        )}
-
-        {step === "make" && (
-          <>
-            <div style={styles.actions}>
-              <button style={styles.secondary} onClick={() => { setStep("era"); setEra(null); }}>
-                Back
-              </button>
-            </div>
-            <Grid>
-              {makes.map((m) => (
-                <Tile key={m} onClick={() => { setMake(m); setStep("model"); }}>
-                  <div style={styles.tileLabel}>{m}</div>
-                  <div style={styles.tileMeta}>Tap to choose</div>
-                </Tile>
-              ))}
-            </Grid>
-          </>
-        )}
-
-        {step === "model" && (
-          <>
-            <div style={styles.actions}>
-              <button style={styles.secondary} onClick={() => { setStep("make"); setMake(null); }}>
-                Back
-              </button>
-            </div>
-            <Grid>
-              {models.map((m) => (
-                <Tile key={m} onClick={() => { setModel(m); setStep("category"); }}>
-                  <div style={styles.tileLabel}>{m}</div>
-                  <div style={styles.tileMeta}>Tap to choose</div>
-                </Tile>
-              ))}
-            </Grid>
-          </>
-        )}
-
-        {step === "category" && (
-          <>
-            <div style={styles.actions}>
-              <button style={styles.secondary} onClick={() => { setStep("model"); setModel(null); }}>
-                Back
-              </button>
-            </div>
-            <Grid>
-              {CATEGORIES.map((c) => (
-                <Tile key={c} onClick={() => { setCategory(c); setStep("results"); }}>
-                  <div style={styles.tileLabel}>{c}</div>
-                  <div style={styles.tileMeta}>Tap to view parts</div>
-                </Tile>
-              ))}
-            </Grid>
-          </>
-        )}
-
-        {step === "results" && (
-          <>
-            <div style={styles.actions}>
-              <button style={styles.secondary} onClick={() => { setStep("category"); setCategory(null); }}>
-                Back
-              </button>
-              <div style={styles.resultsPill}>{filtered.length} results</div>
-            </div>
-
-            <div style={{ display: "grid", gap: 10, marginTop: 12 }}>
-              {filtered.length === 0 ? (
-                <div style={styles.note}>No demo parts match this selection yet.</div>
-              ) : (
-                filtered.map((x) => (
-                  <div key={x.id} style={styles.card}>
-                    <div>
-                      <div style={styles.cardTitle}>{x.title}</div>
-                      <div style={styles.cardSub}>{x.make} • {x.model} • {x.category}</div>
-                      <div style={styles.badges}>
-                        <span style={styles.badge}>{x.condition}</span>
-                        <span style={styles.badge}>{x.location}</span>
-                      </div>
-                    </div>
-                    <div style={styles.price}>£{x.price}</div>
-                  </div>
-                ))
-              )}
-            </div>
-          </>
-        )}
-      </div>
+      </footer>
     </div>
   );
 }
 
-function Grid({ children }: { children: React.ReactNode }) {
-  return <div style={styles.grid}>{children}</div>;
+function Landing({ onNav }: { onNav: (to: Route) => void }) {
+  return (
+    <section>
+      <div style={styles.heroWrap}>
+        <div style={{ ...styles.heroImage, backgroundImage: "url(/landing.png)" }} />
+        <div style={styles.heroOverlay} />
+
+        <div style={styles.heroContent}>
+          <div style={styles.heroKicker}>SPARESHUB</div>
+
+          <h1 className="spareshub-hero-title" style={styles.heroTitle}>
+            Find parts. Sell parts.
+            <br />
+            Keep classics moving.
+          </h1>
+
+          <p style={styles.heroSubtitle}>Click below on which app you would like to view</p>
+
+          <div className="spareshub-cta-row" style={styles.ctaRow}>
+            <button style={styles.ctaPrimary} onClick={() => onNav("/search")}>
+              Start Searching
+            </button>
+            <button style={styles.ctaSecondary} onClick={() => onNav("/signin")}>
+              Sign In
+            </button>
+          </div>
+
+          <div style={styles.heroMicro}>
+            By continuing you agree to our <InlineLink onClick={() => onNav("/terms")}>Terms</InlineLink>{" "}
+            and <InlineLink onClick={() => onNav("/privacy")}>Privacy Policy</InlineLink>.
+          </div>
+        </div>
+      </div>
+    </section>
+  );
 }
 
-function Tile({ children, onClick }: { children: React.ReactNode; onClick: () => void }) {
+function SearchPage({ onNav }: { onNav: (to: Route) => void }) {
+  const [q, setQ] = useState("");
+  const results = [
+    { title: "Jaguar E-Type Series 1 – Front Indicator Lens", tag: "Lighting", location: "UK" },
+    { title: "Austin Healey 3000 – SU Carb Set (rebuilt)", tag: "Engine", location: "EU" },
+    { title: "Porsche 911 (G-body) – Fuchs Wheel 16x7", tag: "Wheels", location: "UK" },
+  ];
+  const filtered = results.filter((r) =>
+    (r.title + " " + r.tag + " " + r.location).toLowerCase().includes(q.toLowerCase())
+  );
+
   return (
-    <button onClick={onClick} style={styles.tile}>
+    <PageShell
+      title="Search Parts"
+      subtitle="Search across verified sellers and enthusiasts. (MVP placeholder)"
+      right={<PrimarySmall onClick={() => onNav("/")}>Back to landing</PrimarySmall>}
+    >
+      <div style={styles.card}>
+        <div style={styles.fieldLabel}>Search</div>
+        <input
+          style={styles.input}
+          placeholder="e.g. E-Type indicator, Weber 45, Dunlop caliper…"
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+        />
+        <div style={{ height: 12 }} />
+        <div style={styles.grid3}>
+          <MiniPill>Make</MiniPill>
+          <MiniPill>Model</MiniPill>
+          <MiniPill>Category</MiniPill>
+        </div>
+      </div>
+
+      <div style={{ height: 16 }} />
+      <div style={styles.sectionHeading}>Results</div>
+      <div style={styles.list}>
+        {filtered.map((r, idx) => (
+          <div key={idx} style={styles.listRow}>
+            <div style={{ fontWeight: 800 }}>{r.title}</div>
+            <div style={styles.listMeta}>
+              <span style={styles.metaChip}>{r.tag}</span>
+              <span style={styles.metaChip}>{r.location}</span>
+            </div>
+          </div>
+        ))}
+        {filtered.length === 0 && <div style={styles.empty}>No results yet — try a broader search.</div>}
+      </div>
+    </PageShell>
+  );
+}
+
+function SellPage({ onNav }: { onNav: (to: Route) => void }) {
+  const [title, setTitle] = useState("");
+  const [price, setPrice] = useState("");
+  const [location, setLocation] = useState("");
+
+  return (
+    <PageShell
+      title="Sell a Part"
+      subtitle="List your part in seconds. (MVP placeholder)"
+      right={<PrimarySmall onClick={() => onNav("/")}>Back to landing</PrimarySmall>}
+    >
+      <div style={styles.card}>
+        <div style={styles.grid2}>
+          <div>
+            <div style={styles.fieldLabel}>Listing title</div>
+            <input
+              style={styles.input}
+              placeholder="e.g. Jaguar XK150 headlamp bowl (pair)"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+            />
+          </div>
+          <div>
+            <div style={styles.fieldLabel}>Price</div>
+            <input
+              style={styles.input}
+              placeholder="e.g. £250"
+              value={price}
+              onChange={(e) => setPrice(e.target.value)}
+            />
+          </div>
+          <div>
+            <div style={styles.fieldLabel}>Location</div>
+            <input
+              style={styles.input}
+              placeholder="e.g. West Sussex, UK"
+              value={location}
+              onChange={(e) => setLocation(e.target.value)}
+            />
+          </div>
+          <div>
+            <div style={styles.fieldLabel}>Photos</div>
+            <div style={styles.dropZone}>Photo upload coming next</div>
+          </div>
+        </div>
+
+        <div style={{ height: 14 }} />
+        <button
+          style={styles.ctaPrimarySolid}
+          onClick={() => alert("MVP: Listing saved locally (placeholder).")}
+        >
+          Publish Listing
+        </button>
+        <div style={styles.heroMicroDark}>This is an MVP placeholder. Next we’ll add real auth & saving.</div>
+      </div>
+    </PageShell>
+  );
+}
+
+function SignInPage({ onNav }: { onNav: (to: Route) => void }) {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+
+  return (
+    <PageShell
+      title="Sign In"
+      subtitle="Access saved searches and listings. (MVP placeholder)"
+      right={<PrimarySmall onClick={() => onNav("/")}>Back to landing</PrimarySmall>}
+    >
+      <div style={styles.cardNarrow}>
+        <div style={styles.fieldLabel}>Email</div>
+        <input style={styles.input} placeholder="you@domain.com" value={email} onChange={(e) => setEmail(e.target.value)} />
+        <div style={{ height: 12 }} />
+        <div style={styles.fieldLabel}>Password</div>
+        <input style={styles.input} type="password" placeholder="••••••••" value={password} onChange={(e) => setPassword(e.target.value)} />
+
+        <div style={{ height: 14 }} />
+        <button style={styles.ctaPrimarySolid} onClick={() => alert("MVP: Sign-in placeholder (no real auth yet).")}>
+          Sign In
+        </button>
+
+        <div style={{ height: 12 }} />
+        <div style={styles.heroMicroDark}>
+          No account yet? <InlineLink onClick={() => onNav("/contact")}>Contact us</InlineLink> for early access.
+        </div>
+      </div>
+    </PageShell>
+  );
+}
+
+function ContactPage() {
+  return (
+    <PageShell title="Contact" subtitle="Get in touch with SparesHub.">
+      <div style={styles.cardNarrow}>
+        <div style={styles.fieldLabel}>Email</div>
+        <div style={styles.footerPill}>hello@spareshub.uk</div>
+        <div style={{ height: 12 }} />
+        <div style={styles.fieldLabel}>Message</div>
+        <textarea style={styles.textarea} placeholder="Tell us what you need…" />
+        <div style={{ height: 14 }} />
+        <button style={styles.ctaPrimarySolid} onClick={() => alert("MVP: Message send placeholder.")}>
+          Send
+        </button>
+      </div>
+    </PageShell>
+  );
+}
+
+function HelpPage() {
+  return (
+    <PageShell title="Help / FAQ" subtitle="Common questions (MVP placeholder).">
+      <div style={styles.card}>
+        <div style={styles.sectionHeading}>FAQ</div>
+        <Faq q="How do I search for parts?" a="Use Search and filter by make, model, and category. We’ll add seller verification and fitment matching next." />
+        <Faq q="How do I sell a part?" a="Use Sell to create a listing. In the full app, you’ll upload photos, set shipping, and manage messages." />
+        <Faq q="Is SparesHub secure?" a="This is an MVP build. Next we’ll add authentication, secure storage, and audit trails." />
+      </div>
+    </PageShell>
+  );
+}
+
+function LegalPage({ title, kind }: { title: string; kind: "terms" | "privacy" | "cookies" | "disclaimer" }) {
+  return (
+    <PageShell title={title} subtitle="MVP draft – to be refined with solicitor input.">
+      <div style={styles.card}>
+        <div style={{ whiteSpace: "pre-wrap", lineHeight: 1.65 }}>{getLegalCopy(kind)}</div>
+      </div>
+    </PageShell>
+  );
+}
+
+function PageShell({ title, subtitle, right, children }: { title: string; subtitle?: string; right?: React.ReactNode; children: React.ReactNode }) {
+  return (
+    <div style={styles.pageWrap}>
+      <div style={styles.pageHeader}>
+        <div>
+          <div style={styles.pageTitle}>{title}</div>
+          {subtitle && <div style={styles.pageSubtitle}>{subtitle}</div>}
+        </div>
+        {right ? <div>{right}</div> : null}
+      </div>
+      {children}
+    </div>
+  );
+}
+
+function NavLink({ label, to, route, onNav }: { label: string; to: Route; route: Route; onNav: (to: Route) => void }) {
+  const active = route === to;
+  return (
+    <button onClick={() => onNav(to)} style={{ ...styles.navLink, ...(active ? styles.navLinkActive : null) }}>
+      {label}
+    </button>
+  );
+}
+
+function FooterLink({ label, to, onNav }: { label: string; to: Route; onNav: (to: Route) => void }) {
+  return (
+    <button onClick={() => onNav(to)} style={styles.footerLink}>
+      {label}
+    </button>
+  );
+}
+
+function InlineLink({ children, onClick }: { children: React.ReactNode; onClick: () => void }) {
+  return (
+    <button onClick={onClick} style={styles.inlineLink}>
       {children}
     </button>
   );
 }
 
+function PrimarySmall({ children, onClick }: { children: React.ReactNode; onClick: () => void }) {
+  return (
+    <button onClick={onClick} style={styles.primarySmall}>
+      {children}
+    </button>
+  );
+}
+
+function MiniPill({ children }: { children: React.ReactNode }) {
+  return <div style={styles.miniPill}>{children}</div>;
+}
+
+function Faq({ q, a }: { q: string; a: string }) {
+  return (
+    <div style={styles.faq}>
+      <div style={styles.faqQ}>{q}</div>
+      <div style={styles.faqA}>{a}</div>
+    </div>
+  );
+}
+
+function getRouteFromLocation(): Route {
+  const path = (window.location.pathname || "/") as Route;
+  const allowed: Route[] = ["/", "/search", "/sell", "/signin", "/contact", "/help", "/terms", "/privacy", "/cookies", "/disclaimer"];
+  return (allowed.includes(path) ? path : "/") as Route;
+}
+
+function getLegalCopy(kind: "terms" | "privacy" | "cookies" | "disclaimer") {
+  if (kind === "terms") {
+    return `TERMS & CONDITIONS (MVP DRAFT)
+
+1. Marketplace role
+SparesHub provides a platform for buyers and sellers to connect. We are not a party to any transaction unless explicitly stated.
+
+2. Listings and accuracy
+Sellers are responsible for ensuring listings are accurate and lawful. Buyers must verify fitment and authenticity before purchase.
+
+3. Fees
+Fees (if any) will be clearly presented prior to payment.
+
+4. Prohibited items
+Illegal, stolen, counterfeit, or restricted goods are prohibited.
+
+5. Liability
+To the maximum extent permitted by law, SparesHub is not liable for losses arising from transactions between users.
+
+6. Governing law
+These terms are governed by the laws of England & Wales.`;
+  }
+  if (kind === "privacy") {
+    return `PRIVACY POLICY (MVP DRAFT)
+
+We collect only the information needed to provide the service (e.g. account and listing data). We do not sell your data.
+
+Data you may provide:
+- Email, name (if creating an account)
+- Listing information and photos
+- Messages sent through the platform
+
+We use standard security practices. Full details and retention periods to be refined in the full release.`;
+  }
+  if (kind === "cookies") {
+    return `COOKIE POLICY (MVP DRAFT)
+
+We use cookies and similar technologies to:
+- Keep you signed in (when enabled)
+- Remember preferences
+- Understand basic usage analytics
+
+You can manage cookies via your browser settings.`;
+  }
+  return `DISCLAIMER (MVP DRAFT)
+
+SparesHub is a marketplace platform only. We do not inspect items, verify authenticity, or guarantee descriptions. Any guidance is general information, not professional advice. Always verify fitment, legality, and provenance independently.`;
+}
+
 const styles: Record<string, React.CSSProperties> = {
-  page: {
-    minHeight: "100vh",
-    background: "#0b0d10",
-    color: "#eef2f7",
-    padding: 16,
-    fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial",
+  appShell: { minHeight: "100vh", display: "flex", flexDirection: "column", background: "#060a12", color: "white" },
+  topBar: {
+    position: "sticky",
+    top: 0,
+    zIndex: 20,
+    background: "rgba(6, 10, 18, 0.72)",
+    backdropFilter: "blur(10px)",
+    borderBottom: "1px solid rgba(255,255,255,0.08)",
   },
-  shell: {
-    maxWidth: 980,
+  topBarInner: {
+    width: "min(1200px, 92vw)",
     margin: "0 auto",
-    border: "1px solid rgba(255,255,255,.10)",
-    borderRadius: 22,
-    padding: 16,
-    background: "rgba(255,255,255,.03)",
-  },
-  headerRow: { display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 },
-  brand: { fontWeight: 850, letterSpacing: 0.2 },
-  sub: { opacity: 0.7, fontSize: 12, marginTop: 2 },
-  resetBtn: {
-    padding: "10px 12px",
-    borderRadius: 999,
-    border: "1px solid rgba(255,255,255,.12)",
-    background: "rgba(255,255,255,.06)",
-    color: "#eef2f7",
-  },
-  breadcrumbs: { display: "flex", flexWrap: "wrap", gap: 8, marginTop: 12, opacity: 0.9, fontSize: 12 },
-  crumb: { padding: "6px 10px", borderRadius: 999, border: "1px solid rgba(255,255,255,.10)", background: "rgba(255,255,255,.03)" },
-  h1: { marginTop: 14, fontSize: 18, fontWeight: 800 },
-  grid: { display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 12, marginTop: 12 },
-  tile: {
-    textAlign: "left",
-    padding: 14,
-    borderRadius: 18,
-    border: "1px solid rgba(255,255,255,.10)",
-    background: "rgba(255,255,255,.03)",
-    color: "#eef2f7",
-    minHeight: 86,
+    padding: "12px 0",
     display: "flex",
-    flexDirection: "column",
-    justifyContent: "space-between",
-  },
-  tileLabel: { fontWeight: 750 },
-  tileMeta: { opacity: 0.65, fontSize: 12 },
-  actions: { display: "flex", gap: 10, alignItems: "center", marginTop: 12 },
-  secondary: {
-    padding: "10px 12px",
-    borderRadius: 14,
-    border: "1px solid rgba(255,255,255,.10)",
-    background: "rgba(255,255,255,.04)",
-    color: "#eef2f7",
-  },
-  resultsPill: {
-    marginLeft: "auto",
-    padding: "10px 12px",
-    borderRadius: 999,
-    border: "1px solid rgba(255,255,255,.10)",
-    background: "rgba(255,255,255,.06)",
-    fontWeight: 700,
-    fontSize: 12,
-  },
-  card: {
-    border: "1px solid rgba(255,255,255,.10)",
-    borderRadius: 18,
-    padding: 12,
-    background: "rgba(255,255,255,.03)",
-    display: "flex",
+    alignItems: "center",
     justifyContent: "space-between",
     gap: 12,
-    alignItems: "flex-start",
   },
-  cardTitle: { fontWeight: 750 },
-  cardSub: { opacity: 0.7, fontSize: 12, marginTop: 4 },
-  badges: { display: "flex", gap: 8, flexWrap: "wrap", marginTop: 8 },
-  badge: { fontSize: 12, padding: "6px 10px", borderRadius: 999, border: "1px solid rgba(255,255,255,.10)", background: "rgba(255,255,255,.03)", opacity: 0.9 },
-  price: { fontWeight: 900, fontSize: 16 },
-  note: { opacity: 0.7, fontSize: 13 },
+  brandButton: {
+    display: "flex",
+    alignItems: "baseline",
+    gap: 6,
+    background: "transparent",
+    border: "none",
+    padding: 0,
+    color: "white",
+    cursor: "pointer",
+    fontSize: 18,
+    fontWeight: 900,
+    letterSpacing: 0.2,
+  },
+  brandMark: { color: "#19af78" },
+  brandMarkAlt: { color: "white" },
+  topNav: { display: "flex", gap: 10, alignItems: "center" },
+  navLink: {
+    border: "1px solid rgba(255,255,255,0.14)",
+    background: "rgba(255,255,255,0.06)",
+    color: "rgba(255,255,255,0.92)",
+    padding: "10px 12px",
+    borderRadius: 12,
+    cursor: "pointer",
+    fontWeight: 800,
+    fontSize: 14,
+  },
+  navLinkActive: {
+    background: "rgba(25, 175, 120, 0.18)",
+    border: "1px solid rgba(25, 175, 120, 0.55)",
+    color: "white",
+  },
+  main: { flex: 1 },
+
+  heroWrap: { position: "relative", width: "100%", overflow: "hidden" },
+  heroImage: { height: "78vh", minHeight: 540, backgroundSize: "cover", backgroundPosition: "center", backgroundRepeat: "no-repeat" },
+  heroOverlay: { position: "absolute", inset: 0, background: "linear-gradient(to bottom, rgba(0,0,0,0.08), rgba(0,0,0,0.38) 55%, rgba(0,0,0,0.62))" },
+  heroContent: { position: "absolute", left: "50%", top: "48%", transform: "translate(-50%, -50%)", width: "min(980px, 92vw)", padding: 16 },
+  heroKicker: { fontSize: 13, letterSpacing: 1.6, opacity: 0.9, marginBottom: 10 },
+  heroTitle: { margin: 0, fontSize: 46, lineHeight: 1.05, fontWeight: 900 },
+  heroSubtitle: { marginTop: 12, maxWidth: 720, fontSize: 16, opacity: 0.9 },
+
+  ctaRow: { marginTop: 18, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, width: "min(820px, 100%)" },
+  ctaPrimary: {
+    height: 64,
+    borderRadius: 14,
+    border: "1px solid rgba(255,255,255,0.18)",
+    background: "rgba(25, 175, 120, 0.92)",
+    color: "#07130e",
+    fontSize: 18,
+    fontWeight: 900,
+    cursor: "pointer",
+    boxShadow: "0 12px 34px rgba(0,0,0,0.25)",
+  },
+  ctaSecondary: {
+    height: 64,
+    borderRadius: 14,
+    border: "1px solid rgba(255,255,255,0.22)",
+    background: "rgba(18, 22, 26, 0.82)",
+    color: "white",
+    fontSize: 18,
+    fontWeight: 900,
+    cursor: "pointer",
+    boxShadow: "0 12px 34px rgba(0,0,0,0.25)",
+  },
+  heroMicro: { marginTop: 14, fontSize: 12, opacity: 0.8 },
+  heroMicroDark: { marginTop: 10, fontSize: 12, opacity: 0.75, color: "rgba(255,255,255,0.85)" },
+
+  inlineLink: { background: "transparent", border: "none", padding: 0, margin: 0, cursor: "pointer", color: "rgba(255,255,255,0.92)", textDecoration: "underline", fontWeight: 800 },
+
+  pageWrap: { width: "min(1100px, 92vw)", margin: "22px auto 44px auto" },
+  pageHeader: { display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: 12, marginBottom: 14 },
+  pageTitle: { fontSize: 28, fontWeight: 950 },
+  pageSubtitle: { marginTop: 6, fontSize: 14, opacity: 0.82 },
+
+  card: { background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 16, padding: 16 },
+  cardNarrow: { maxWidth: 520, background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 16, padding: 16 },
+
+  fieldLabel: { fontSize: 12, opacity: 0.85, fontWeight: 800, marginBottom: 6 },
+  input: { width: "100%", height: 44, borderRadius: 12, border: "1px solid rgba(255,255,255,0.14)", background: "rgba(0,0,0,0.22)", color: "white", padding: "0 12px", outline: "none" },
+  textarea: { width: "100%", minHeight: 120, borderRadius: 12, border: "1px solid rgba(255,255,255,0.14)", background: "rgba(0,0,0,0.22)", color: "white", padding: 12, outline: "none", resize: "vertical" },
+  dropZone: { height: 44, borderRadius: 12, border: "1px dashed rgba(255,255,255,0.22)", background: "rgba(0,0,0,0.18)", display: "flex", alignItems: "center", justifyContent: "center", opacity: 0.85, fontSize: 13, fontWeight: 800 },
+
+  grid2: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 },
+  grid3: { display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 },
+
+  ctaPrimarySolid: { width: "100%", height: 48, borderRadius: 14, border: "1px solid rgba(255,255,255,0.14)", background: "rgba(25, 175, 120, 0.92)", color: "#07130e", fontSize: 16, fontWeight: 950, cursor: "pointer" },
+
+  primarySmall: { height: 38, padding: "0 12px", borderRadius: 12, border: "1px solid rgba(255,255,255,0.14)", background: "rgba(255,255,255,0.06)", color: "white", cursor: "pointer", fontWeight: 900 },
+
+  sectionHeading: { fontSize: 14, fontWeight: 950, opacity: 0.92, marginBottom: 10 },
+  list: { borderRadius: 16, overflow: "hidden", border: "1px solid rgba(255,255,255,0.12)", background: "rgba(255,255,255,0.04)" },
+  listRow: { padding: 14, borderBottom: "1px solid rgba(255,255,255,0.08)" },
+  listMeta: { marginTop: 8, display: "flex", gap: 8, flexWrap: "wrap" },
+  metaChip: { display: "inline-flex", alignItems: "center", gap: 6, padding: "6px 10px", borderRadius: 999, border: "1px solid rgba(255,255,255,0.14)", background: "rgba(0,0,0,0.18)", fontSize: 12, fontWeight: 850, opacity: 0.92 },
+  empty: { padding: 14, opacity: 0.8 },
+
+  miniPill: { height: 38, borderRadius: 12, border: "1px solid rgba(255,255,255,0.14)", background: "rgba(0,0,0,0.16)", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 900, opacity: 0.9, fontSize: 13 },
+
+  faq: { marginTop: 12, paddingTop: 12, borderTop: "1px solid rgba(255,255,255,0.10)" },
+  faqQ: { fontWeight: 950, marginBottom: 6 },
+  faqA: { opacity: 0.86, lineHeight: 1.55 },
+
+  footer: { background: "#0b1320", borderTop: "1px solid rgba(255,255,255,0.08)", padding: "34px 16px" },
+  footerInner: { width: "min(1200px, 92vw)", margin: "0 auto" },
+  footerGrid: { display: "grid", gridTemplateColumns: "1.2fr 1fr 1fr 1fr", gap: 18 },
+  footerBrand: { fontWeight: 950, fontSize: 18, marginBottom: 8 },
+  footerBrandA: { color: "#19af78" },
+  footerBrandB: { color: "white" },
+  footerHeading: { fontWeight: 950, marginBottom: 10 },
+  footerText: { opacity: 0.82, fontSize: 14, lineHeight: 1.5, margin: 0 },
+  footerTiny: { opacity: 0.7, fontSize: 12, marginTop: 12 },
+  footerPill: { display: "inline-flex", padding: "8px 10px", borderRadius: 999, border: "1px solid rgba(255,255,255,0.14)", background: "rgba(0,0,0,0.20)", fontWeight: 900, fontSize: 13, marginTop: 8 },
+  footerLink: { display: "block", width: "100%", textAlign: "left", background: "transparent", border: "none", padding: "6px 0", margin: 0, cursor: "pointer", color: "rgba(255,255,255,0.86)", fontWeight: 850 },
+  footerDivider: { height: 1, background: "rgba(255,255,255,0.08)", margin: "18px 0" },
+  footerFinePrint: { fontSize: 12, opacity: 0.68, lineHeight: 1.55 },
 };
