@@ -1,5 +1,196 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 
+function App() {
+  const year = useMemo(() => new Date().getFullYear(), []);
+
+  return (
+    <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column" }}>
+      {/* HERO */}
+      <section style={{ position: "relative" }}>
+        {/* Hero image */}
+        <div
+          style={{
+            height: "72vh",
+            minHeight: 520,
+            backgroundImage: "url(/landing.jpg)",
+            backgroundSize: "cover",
+            backgroundPosition: "center",
+            backgroundRepeat: "no-repeat",
+          }}
+        />
+
+        {/* Dark overlay for readability (matches your screenshot vibe) */}
+        <div
+          style={{
+            position: "absolute",
+            inset: 0,
+            background:
+              "linear-gradient(to bottom, rgba(0,0,0,0.10), rgba(0,0,0,0.35) 60%, rgba(0,0,0,0.55))",
+          }}
+        />
+
+        {/* Headline + CTA boxes */}
+        <div
+          style={{
+            position: "absolute",
+            left: "50%",
+            top: "46%",
+            transform: "translate(-50%, -50%)",
+            width: "min(980px, 92vw)",
+            padding: 16,
+            color: "white",
+          }}
+        >
+          <div style={{ fontSize: 14, letterSpacing: 1.2, opacity: 0.9, marginBottom: 10 }}>
+            SPARESHUB
+          </div>
+
+          <h1 style={{ margin: 0, fontSize: 44, lineHeight: 1.05, fontWeight: 800 }}>
+            Find parts. Sell parts.
+            <br />
+            Keep classics moving.
+          </h1>
+
+          <p style={{ marginTop: 12, maxWidth: 700, fontSize: 16, opacity: 0.92 }}>
+            Click below on which app you would like to view.
+          </p>
+
+          <div
+            style={{
+              marginTop: 18,
+              display: "grid",
+              gridTemplateColumns: "1fr 1fr",
+              gap: 14,
+              width: "min(820px, 100%)",
+            }}
+          >
+            <a
+              href="/search"
+              style={{
+                height: 64,
+                borderRadius: 14,
+                border: "1px solid rgba(255,255,255,0.22)",
+                background: "rgba(25, 175, 120, 0.92)",
+                color: "#08140f",
+                fontSize: 18,
+                fontWeight: 800,
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                boxShadow: "0 10px 30px rgba(0,0,0,0.25)",
+              }}
+            >
+              Start Searching
+            </a>
+
+            <a
+              href="/signin"
+              style={{
+                height: 64,
+                borderRadius: 14,
+                border: "1px solid rgba(255,255,255,0.24)",
+                background: "rgba(20, 24, 28, 0.85)",
+                color: "white",
+                fontSize: 18,
+                fontWeight: 800,
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                boxShadow: "0 10px 30px rgba(0,0,0,0.25)",
+              }}
+            >
+              Sign In
+            </a>
+          </div>
+
+          <div style={{ marginTop: 18, fontSize: 12, opacity: 0.75 }}>
+            By continuing you agree to our Terms & Conditions and Privacy Policy.
+          </div>
+        </div>
+      </section>
+
+      {/* FOOTER */}
+      <footer
+        style={{
+          marginTop: "auto",
+          padding: "34px 16px",
+          borderTop: "1px solid rgba(255,255,255,0.10)",
+          background: "#0b1320",
+          color: "rgba(255,255,255,0.9)",
+        }}
+      >
+        <div style={{ width: "min(1100px, 92vw)", margin: "0 auto" }}>
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "1.2fr 1fr 1fr 1fr",
+              gap: 18,
+            }}
+          >
+            <div>
+              <div style={{ fontWeight: 900, fontSize: 18, marginBottom: 8 }}>SparesHub</div>
+              <div style={{ opacity: 0.8, lineHeight: 1.5, fontSize: 14 }}>
+                The simplest way to find and sell classic & historic vehicle parts.
+              </div>
+            </div>
+
+            <div>
+              <div style={{ fontWeight: 800, marginBottom: 8 }}>Site</div>
+              <FooterLink href="/">Home</FooterLink>
+              <FooterLink href="/search">Search</FooterLink>
+              <FooterLink href="/sell">Sell</FooterLink>
+              <FooterLink href="/signin">Sign In</FooterLink>
+            </div>
+
+            <div>
+              <div style={{ fontWeight: 800, marginBottom: 8 }}>Legal</div>
+              <FooterLink href="/terms">Terms & Conditions</FooterLink>
+              <FooterLink href="/privacy">Privacy Policy</FooterLink>
+              <FooterLink href="/cookies">Cookie Policy</FooterLink>
+              <FooterLink href="/disclaimer">Disclaimer</FooterLink>
+            </div>
+
+            <div>
+              <div style={{ fontWeight: 800, marginBottom: 8 }}>Contact</div>
+              <FooterLink href="/contact">Contact Us</FooterLink>
+              <FooterLink href="/help">Help / FAQ</FooterLink>
+              <div style={{ marginTop: 10, opacity: 0.75, fontSize: 13 }}>
+                © {year} SparesHub. All rights reserved.
+              </div>
+            </div>
+          </div>
+
+          <div style={{ marginTop: 18, opacity: 0.65, fontSize: 12, lineHeight: 1.5 }}>
+            SparesHub is a marketplace and does not guarantee the authenticity, condition, or legality of
+            any items listed. Always verify fitment and provenance before purchase.
+          </div>
+        </div>
+      </footer>
+    </div>
+  );
+}
+
+function FooterLink(props: { href: string; children: React.ReactNode }) {
+  return (
+    <div style={{ margin: "6px 0" }}>
+      <a
+        href={props.href}
+        style={{
+          color: "rgba(255,255,255,0.86)",
+          textDecoration: "none",
+          opacity: 0.86,
+        }}
+      >
+        {props.children}
+      </a>
+    </div>
+  );
+}
+
+export default App;
 /**
  * Spares Hub (Demo) — Single-file App.tsx
  *
